@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Build the Symbol</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --psg-blue:#077CAB; --psg-navy:#0C2340; --card-gray:#EAEAEA;
+    --page-bg:#F5F5F5; --white:#FFFFFF; --correct:#1F7A3D; --incorrect:#B3261E; --muted:#5A6B7D;
+    --font-head:"Montserrat","Segoe UI",Arial,sans-serif;
+    --font-body:"Source Sans 3","Segoe UI",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;padding:0;overflow:hidden;}
+  body{background:var(--page-bg);font-family:var(--font-body);color:var(--psg-navy);-webkit-font-smoothing:antialiased;}
+  .wrap{height:100%;max-width:900px;margin:0 auto;padding:clamp(10px,2.2vh,22px) clamp(12px,2vw,24px);
+    display:flex;flex-direction:column;gap:clamp(6px,1.2vh,12px);min-height:0;overflow:auto;}
+  .head{flex:0 0 auto;}
+  .toprow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
+  h1{font-family:var(--font-head);font-weight:700;font-size:clamp(17px,min(3.2vw,4.4vh),30px);line-height:1.15;margin:0 0 5px;}
+  .progress{font-family:var(--font-head);font-weight:600;font-size:clamp(11px,min(1.4vw,1.9vh),14px);color:var(--psg-blue);white-space:nowrap;}
+  .rule{height:4px;background:var(--psg-blue);width:58px;border-radius:2px;margin:0 0 clamp(6px,1.2vh,12px);}
+  .prompt{font-size:clamp(14px,min(2vw,2.6vh),19px);line-height:1.35;margin:0;}
+  .prompt b{font-weight:600;}
+
+  /* ---------- step tracker: Triangle -> Size -> Length ---------- */
+  .steps{flex:0 0 auto;display:flex;gap:6px;flex-wrap:wrap;}
+  .pill{font-family:var(--font-head);font-weight:600;font-size:clamp(11px,min(1.4vw,1.9vh),14px);
+    padding:4px 10px;border-radius:999px;background:var(--card-gray);color:var(--muted);white-space:nowrap;}
+  .pill.now{background:var(--psg-blue);color:#fff;}
+  .pill.done{background:#E3F1E7;color:var(--correct);}
+  .pill.done::before{content:"\2713  ";}
+
+  .preview{flex:1 1 auto;min-height:76px;max-height:200px;background:var(--white);border:2px solid var(--card-gray);
+    border-radius:10px;display:flex;align-items:center;justify-content:center;padding:4px;}
+  .preview svg{width:100%;height:100%;display:block;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .ph{animation:pulse 1.4s ease-in-out infinite;}
+
+  .ask{flex:0 0 auto;font-family:var(--font-head);font-weight:700;font-size:clamp(14px,min(1.9vw,2.5vh),18px);margin:0;}
+  .ask small{font-family:var(--font-body);font-weight:400;color:var(--muted);font-size:.85em;}
+
+  .choices{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:clamp(6px,1vw,10px);}
+  .opt{min-height:42px;min-width:58px;padding:4px 14px;border-radius:8px;cursor:pointer;
+    border:2px solid var(--card-gray);background:var(--white);color:var(--psg-navy);
+    font-family:var(--font-body);font-weight:600;font-size:clamp(15px,min(2vw,2.6vh),19px);line-height:1.1;
+    display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
+  .opt small{font-weight:400;font-size:.72em;color:var(--muted);}
+  .opt:hover:not(.locked){border-color:var(--psg-blue);}
+  .opt:focus-visible{outline:3px solid var(--psg-blue);outline-offset:2px;}
+  .opt.wrong{border-color:var(--incorrect);background:#FDF3F2;}
+  .opt.locked{cursor:default;}
+  .opt svg{height:22px;width:auto;}
+
+  .response{flex:0 0 auto;display:flex;flex-direction:column;gap:clamp(6px,1.2vh,12px);min-height:clamp(90px,17vh,150px);}
+  .feedback{visibility:hidden;border-left:6px solid var(--psg-blue);background:var(--card-gray);border-radius:6px;
+    padding:clamp(8px,1.4vh,14px) clamp(10px,1.4vw,18px);font-size:clamp(13px,min(1.8vw,2.4vh),17px);line-height:1.4;}
+  .feedback.show{visibility:visible;}
+  .feedback .verdict{font-family:var(--font-head);font-weight:700;display:block;margin-bottom:2px;font-size:1.05em;}
+  .feedback.correct{border-left-color:var(--correct);} .feedback.correct .verdict{color:var(--correct);}
+  .feedback.incorrect{border-left-color:var(--incorrect);} .feedback.incorrect .verdict{color:var(--incorrect);}
+  .actions{visibility:hidden;flex:0 0 auto;}
+  .actions.show{visibility:visible;}
+  .actions button{font-family:var(--font-head);font-weight:600;font-size:clamp(13px,min(1.5vw,2vh),15px);color:#fff;
+    background:var(--psg-blue);border:none;border-radius:6px;padding:clamp(7px,1.2vh,11px) clamp(14px,1.8vw,22px);cursor:pointer;}
+  .actions button:hover{background:#066890;}
+  .actions button:focus-visible{outline:3px solid var(--psg-navy);outline-offset:2px;}
+
+  @media (max-width:700px){
+    .wrap{padding:8px 10px;gap:5px;position:relative;max-height:430px;}
+    h1{font-size:17px;margin-bottom:3px;}
+    .rule{margin-bottom:5px;height:3px;}
+    .prompt{font-size:14px;line-height:1.3;}
+    .pill{font-size:11px;padding:3px 8px;}
+    .preview{min-height:58px;max-height:120px;}
+    .ask{font-size:14px;}
+    .ask small{display:none;}
+    .choices{gap:5px;flex-wrap:nowrap;}
+    .opt{flex:1 1 0;min-width:0;min-height:42px;padding:2px 3px;font-size:15px;}
+    .opt small{font-size:10px;}
+    .response{position:absolute;top:0;left:0;right:0;margin:0;padding:10px;min-height:0;z-index:5;background:transparent;pointer-events:none;}
+    .response.active{background:var(--page-bg);pointer-events:auto;box-shadow:0 6px 16px rgba(12,35,64,.14);border-radius:0 0 10px 10px;}
+    .feedback{font-size:13px;line-height:1.35;padding:8px 10px;border-left-width:5px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div class="toprow"><h1 id="title"></h1><span class="progress" id="progress"></span></div>
+    <div class="rule"></div>
+    <p class="prompt" id="prompt"></p>
+  </div>
+
+  <div class="steps" id="steps" aria-hidden="true"></div>
+  <div class="preview" id="preview" role="img" aria-label="Your welding symbol so far"></div>
+  <p class="ask" id="ask" aria-live="polite"></p>
+  <div class="choices" id="choices" role="group" aria-labelledby="ask"></div>
+
+  <div class="response" id="response">
+    <div class="feedback" id="feedback" role="status" aria-live="polite">
+      <span class="verdict" id="verdict"></span><span id="explain"></span>
+    </div>
+    <div class="actions" id="actions"><button type="button" id="actionBtn">Try again</button></div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   EDIT BELOW THIS LINE TO CHANGE THE TASKS
+   ----------------------------------------------------------------
+   Learners build each symbol in steps: triangle, then size, then
+   length (for each welded side).
+   answer.below = arrow side, answer.above = other side (null = none).
+   len: "" means the weld runs the full length (no length number).
+   SIZE_CHOICES / LENGTH_CHOICES = the buttons offered at each step.
+   One "trap" number from the other group is mixed in on purpose.
+   ================================================================ */
+const COURSE_TITLE = "Build the Symbol";
+const SIZE_CHOICES   = ["1/4", "5/16", "3/8", "6"];
+const LENGTH_CHOICES = ["Full", "6", "10", "3/8"];
+
+const TASKS = [
+  {
+    prompt: "Build the symbol for a <b>1/4 fillet weld on the arrow side</b>. It runs the <b>full length</b> of the joint.",
+    answer: { below: { size: "1/4", len: "" }, above: null },
+    correct: "Triangle below the line for the arrow side, 1/4 on its left, and no length because the weld runs the full joint."
+  },
+  {
+    prompt: "Build the symbol for a <b>3/8 fillet weld on the other side</b>, <b>6 inches long</b>.",
+    answer: { below: null, above: { size: "3/8", len: "6" } },
+    correct: "Triangle above the line for the other side, size 3/8 on the left, and length 6 on the right."
+  },
+  {
+    prompt: "Build the symbol for welds on <b>both sides</b>: <b>5/16 on the arrow side</b>, <b>1/4 on the other side</b>. Both are <b>10 inches long</b>.",
+    answer: { below: { size: "5/16", len: "10" }, above: { size: "1/4", len: "10" } },
+    correct: "Arrow side below: 5/16 and 10. Other side above: 1/4 and 10. Each side gets its own size and length."
+  }
+];
+/* ================================================================
+   NO EDITS NEEDED BELOW THIS LINE
+   ================================================================ */
+
+(function () {
+  const INK = "#0C2340", BLUE = "#077CAB", PART = "#E2E6EA", FONT = "Arial, Helvetica, sans-serif";
+  const SIZES = ["1/4", "5/16", "3/8"];
+  const SIDE = { below: "arrow side", above: "other side" };
+  const SIDE_LONG = { below: "arrow side (below the line)", above: "other side (above the line)" };
+  const $ = function (id) { return document.getElementById(id); };
+  const previewEl = $("preview"), askEl = $("ask"), choicesEl = $("choices"), stepsEl = $("steps");
+  const resp = $("response"), fb = $("feedback"), verdict = $("verdict"), explain = $("explain");
+  const actions = $("actions"), actionBtn = $("actionBtn");
+  $("title").textContent = COURSE_TITLE; document.title = COURSE_TITLE;
+
+  let ti = 0, steps = [], si = 0, built, mode = "pick";
+
+  function triPath(x, y, t, side) {
+    return side === "above" ? "M" + x + " " + y + " L" + x + " " + (y - t) + " L" + (x + t) + " " + y
+                            : "M" + x + " " + y + " L" + x + " " + (y + t) + " L" + (x + t) + " " + y;
+  }
+  function txt(x, y, s, size, anchor, fill) {
+    return '<text x="' + x + '" y="' + y + '" font-family="' + FONT + '" font-size="' + size + '" fill="' + (fill || INK) +
+      '" text-anchor="' + anchor + '">' + s + '</text>';
+  }
+
+  // ---- live preview of the symbol ----
+  function drawPreview() {
+    const ly = 62, tx = 236, t = 24, cur = steps[si];
+    let s = '<svg viewBox="0 0 360 124" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect x="10" y="98" width="100" height="14" fill="' + PART + '" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<rect x="50" y="18" width="20" height="80" fill="' + PART + '" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<line x1="130" y1="' + ly + '" x2="350" y2="' + ly + '" stroke="' + INK + '" stroke-width="2.6"/>';
+    s += '<line x1="130" y1="' + ly + '" x2="78" y2="91" stroke="' + INK + '" stroke-width="2.6"/>';
+    s += '<path d="M71 96 L76 83 L84 93 Z" fill="' + INK + '"/>';
+    s += txt(92, 120, "arrow side", 11, "start", "#5A6B7D");
+    ["above", "below"].forEach(function (side) {
+      const b = built[side], up = side === "above";
+      if (b.tri) s += '<path d="' + triPath(tx, ly, t, side) + '" fill="none" stroke="' + INK + '" stroke-width="2.8" stroke-linejoin="round"/>';
+      const ty = up ? ly - 8 : ly + 27;
+      if (b.size) s += txt(tx - 8, ty, b.size, 24, "end");
+      if (b.len) s += txt(tx + t + 8, ty, b.len, 24, "start");
+      // placeholder for the piece being asked for now
+      if (mode === "pick" && cur && cur.side === side && cur.kind !== "tri") {
+        const left = cur.kind === "size", bx = left ? tx - 70 : tx + t + 4, by = up ? ly - 36 : ly + 4;
+        s += '<g class="ph"><rect x="' + bx + '" y="' + by + '" width="64" height="32" rx="5" fill="#E6F3F9" stroke="' + BLUE + '" stroke-width="2" stroke-dasharray="5 4"/>' +
+             txt(bx + 32, by + 21, left ? "size?" : "length?", 14, "middle", BLUE) + '</g>';
+      }
+    });
+    if (mode === "pick" && cur && cur.kind === "tri") {
+      s += '<g class="ph"><rect x="' + (tx - 4) + '" y="' + (ly - 34) + '" width="' + (t + 8) + '" height="68" rx="5" fill="#E6F3F9" fill-opacity=".6" stroke="' + BLUE + '" stroke-width="2" stroke-dasharray="5 4"/>' +
+           txt(tx + t / 2, ly + 5, "?", 16, "middle", BLUE) + '</g>';
+    }
+    previewEl.innerHTML = s + '</svg>';
+  }
+
+  // ---- steps for a task ----
+  function makeSteps(ans) {
+    // always three stages: triangle, then size(s), then length(s)
+    const sides = ["below", "above"].filter(function (sd) { return !!ans[sd]; });
+    return [{ kind: "tri" }]
+      .concat(sides.map(function (sd) { return { kind: "size", side: sd }; }))
+      .concat(sides.map(function (sd) { return { kind: "len", side: sd }; }));
+  }
+  function drawPills() {
+    const both = TASKS[ti].answer.below && TASKS[ti].answer.above;
+    const groups = [["tri", "Triangle"], ["size", both ? "Sizes" : "Size"], ["len", both ? "Lengths" : "Length"]];
+    stepsEl.innerHTML = groups.map(function (g, n) {
+      const idx = steps.map(function (st, k) { return st.kind === g[0] ? k : -1; }).filter(function (k) { return k >= 0; });
+      const done = idx.every(function (k) { return k < si; });
+      const now = !done && idx.indexOf(si) >= 0 && mode !== "done";
+      return '<span class="pill ' + (done ? "done" : now ? "now" : "") + '">' + (done ? "" : (n + 1) + " ") + g[1] + '</span>';
+    }).join("");
+  }
+
+  function triIcon(side) {
+    return '<svg viewBox="0 0 34 34"><line x1="0" y1="17" x2="34" y2="17" stroke="#5A6B7D" stroke-width="2"/><path d="' +
+      triPath(10, 17, 13, side) + '" fill="none" stroke="' + INK + '" stroke-width="2.6"/></svg>';
+  }
+
+  function drawChoices() {
+    const st = steps[si];
+    choicesEl.innerHTML = "";
+    let opts;
+    if (st.kind === "tri") {
+      askEl.innerHTML = "Where does the triangle go? <small>Each side that gets a weld gets a triangle.</small>";
+      opts = [
+        { v: "below", html: triIcon("below") + "<small>Below line</small>", aria: "Below the line" },
+        { v: "above", html: triIcon("above") + "<small>Above line</small>", aria: "Above the line" },
+        { v: "both",  html: '<svg viewBox="0 0 34 34"><line x1="0" y1="17" x2="34" y2="17" stroke="#5A6B7D" stroke-width="2"/><path d="' + triPath(10,17,13,"above") + ' M10 17 L10 30 L23 17" fill="none" stroke="' + INK + '" stroke-width="2.6"/></svg><small>Both</small>', aria: "Both sides of the line" }
+      ];
+    } else if (st.kind === "size") {
+      askEl.innerHTML = "Pick the <u>size</u> for the " + SIDE[st.side] + ". <small>It goes left of the triangle.</small>";
+      opts = SIZE_CHOICES.map(function (v) { return { v: v, html: v, aria: v }; });
+    } else {
+      askEl.innerHTML = "Pick the <u>length</u> for the " + SIDE[st.side] + ". <small>It goes right of the triangle.</small>";
+      opts = LENGTH_CHOICES.map(function (v) {
+        return v === "Full" ? { v: "", html: "Full<small>leave blank</small>", aria: "Full length, leave blank" } : { v: v, html: v, aria: v };
+      });
+    }
+    opts.forEach(function (o) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "opt"; b.innerHTML = o.html; b.setAttribute("aria-label", o.aria);
+      b.addEventListener("click", function () { answer(o.v, b); });
+      choicesEl.appendChild(b);
+    });
+  }
+
+  function wrongMsg(st, v) {
+    const ans = TASKS[ti].answer;
+    if (st.kind === "tri") {
+      if (ans.below && ans.above) return "This joint is welded on both sides, so it needs a triangle above and below the line.";
+      if (v === "both") return "Only one side gets a weld, so the symbol needs only one triangle.";
+      return ans.below ? "The weld is on the arrow side, so the triangle goes below the line."
+                       : "The weld is on the other side, so the triangle goes above the line.";
+    }
+    const e = ans[st.side];
+    if (st.kind === "size") {
+      if (SIZES.indexOf(v) < 0) return v + " is a length, not a size. Size tells how big the weld is, like 1/4 or 3/8.";
+      return "That is not the size for the " + SIDE[st.side] + ". Re-read the task.";
+    }
+    if (v && SIZES.indexOf(v) >= 0) return v + " is a size, not a length. Length tells how many inches the weld runs.";
+    if (!e.len) return "This weld runs the full length of the joint, so no length number is needed. Leave it blank.";
+    if (!v) return "This weld has a set length, so a number goes to the right of the triangle.";
+    return "That is not the length for the " + SIDE[st.side] + ". Re-read the task.";
+  }
+
+  function rightMsg(st) {
+    if (st.kind === "tri") return "Triangle placed.";
+    if (st.kind === "size") return "Size placed on the left.";
+    return built[st.side].len ? "Length placed on the right." : "Length left blank for a full-length weld.";
+  }
+
+  function answer(v, btn) {
+    if (mode !== "pick") return;
+    const st = steps[si], ans = TASKS[ti].answer;
+    let ok;
+    if (st.kind === "tri") ok = (v === "both") ? !!(ans.below && ans.above) : (!!ans[v] && !ans[v === "below" ? "above" : "below"]);
+    else ok = (st.kind === "size" ? ans[st.side].size : ans[st.side].len) === v;
+
+    if (!ok) {
+      btn.classList.add("wrong");
+      mode = "wrong";
+      verdict.textContent = "Not quite."; explain.textContent = " " + wrongMsg(st, v);
+      fb.className = "feedback show incorrect"; actionBtn.textContent = "Try again";
+      actions.className = "actions show"; resp.classList.add("active");
+      actionBtn.focus({ preventScroll: true });
+      return;
+    }
+    if (st.kind === "tri") { built.below.tri = v !== "above"; built.above.tri = v !== "below"; }
+    else built[st.side][st.kind === "size" ? "size" : "len"] = v;
+    si++;
+    if (si >= steps.length) {
+      mode = "done"; drawPreview(); drawPills();
+      choicesEl.innerHTML = ""; askEl.textContent = "Symbol complete.";
+      verdict.textContent = "That's the symbol."; explain.textContent = " " + TASKS[ti].correct;
+      fb.className = "feedback show correct";
+      actionBtn.textContent = ti < TASKS.length - 1 ? "Next task" : "Start over";
+      actions.className = "actions show"; resp.classList.add("active");
+      actionBtn.focus({ preventScroll: true });
+      return;
+    }
+    drawPreview(); drawPills(); drawChoices();
+    askEl.innerHTML = '<span style="color:#1F7A3D">\u2713 ' + rightMsg(steps[si - 1]) + "</span> " + askEl.innerHTML;
+    if (choicesEl.firstChild) choicesEl.firstChild.focus({ preventScroll: true });
+  }
+
+  function hideFeedback() { fb.className = "feedback"; actions.className = "actions"; resp.classList.remove("active"); }
+
+  function load(i) {
+    ti = i; steps = makeSteps(TASKS[i].answer); si = 0; mode = "pick";
+    built = { above: { tri: false, size: "", len: "" }, below: { tri: false, size: "", len: "" } };
+    $("progress").textContent = "Task " + (i + 1) + " of " + TASKS.length;
+    $("prompt").innerHTML = TASKS[i].prompt;
+    hideFeedback(); drawPreview(); drawPills(); drawChoices();
+  }
+
+  actionBtn.addEventListener("click", function () {
+    if (mode === "done") { load(ti < TASKS.length - 1 ? ti + 1 : 0); }
+    else { mode = "pick"; hideFeedback(); Array.prototype.forEach.call(choicesEl.children, function (c) { c.classList.remove("wrong"); }); }
+    if (choicesEl.firstChild) choicesEl.firstChild.focus({ preventScroll: true });
+  });
+
+  load(0);
+})();
+</script>
+</body>
+</html>
