@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Match the Symbol to the Weld</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --psg-blue:#077CAB; --psg-navy:#0C2340; --card-gray:#EAEAEA;
+    --page-bg:#F5F5F5; --white:#FFFFFF; --correct:#1F7A3D; --incorrect:#B3261E;
+    --font-head:"Montserrat","Segoe UI",Arial,sans-serif;
+    --font-body:"Source Sans 3","Segoe UI",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;padding:0;overflow:hidden;}
+  body{background:var(--page-bg);font-family:var(--font-body);color:var(--psg-navy);-webkit-font-smoothing:antialiased;}
+  .wrap{
+    height:100%;max-width:1100px;margin:0 auto;
+    padding:clamp(10px,2.2vh,22px) clamp(12px,2vw,24px);
+    display:flex;flex-direction:column;gap:clamp(6px,1.2vh,14px);
+    min-height:0;overflow:auto;
+  }
+  .head{flex:0 0 auto;}
+  .toprow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
+  h1{font-family:var(--font-head);font-weight:700;font-size:clamp(17px,min(3.2vw,4.4vh),30px);line-height:1.15;margin:0 0 5px;}
+  .progress{font-family:var(--font-head);font-weight:600;font-size:clamp(11px,min(1.4vw,1.9vh),14px);color:var(--psg-blue);white-space:nowrap;}
+  .rule{height:4px;background:var(--psg-blue);width:58px;border-radius:2px;margin:0 0 clamp(6px,1.2vh,12px);}
+  .prompt{font-size:clamp(14px,min(2vw,2.6vh),19px);line-height:1.35;margin:0;max-width:75ch;}
+
+  .given{
+    flex:0 1 auto;height:clamp(90px,26vh,220px);min-height:80px;
+    background:var(--white);border:2px solid var(--card-gray);border-radius:10px;
+    display:flex;align-items:center;justify-content:center;padding:4px;
+  }
+  .given svg{width:100%;height:100%;display:block;}
+  .given-label,.hint{font-size:clamp(11px,min(1.4vw,1.9vh),14px);color:#5A6B7D;margin:0;}
+
+  .options{
+    flex:1 1 auto;min-height:140px;display:grid;
+    grid-template-columns:repeat(3,1fr);gap:clamp(8px,1.4vw,18px);
+  }
+  .opt{
+    background:var(--white);border:3px solid var(--card-gray);border-radius:10px;
+    padding:clamp(4px,1vh,10px);cursor:pointer;display:flex;flex-direction:column;
+    align-items:center;gap:4px;min-height:0;overflow:hidden;
+    font-family:var(--font-body);color:var(--psg-navy);
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .opt:hover:not(.locked){border-color:var(--psg-blue);box-shadow:0 4px 14px rgba(12,35,64,.12);}
+  .opt:focus-visible{outline:3px solid var(--psg-blue);outline-offset:3px;}
+  .opt svg{flex:1 1 auto;min-height:0;width:100%;height:100%;display:block;}
+  .opt .label{flex:0 0 auto;font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:clamp(10px,min(1.2vw,1.7vh),13px);color:#5A6B7D;}
+  .opt.chosen-correct{border-color:var(--correct);background:#F1F8F3;}
+  .opt.chosen-incorrect{border-color:var(--incorrect);background:#FDF3F2;}
+  .opt.dimmed{opacity:.45;}
+  .opt.locked{cursor:default;}
+
+  .response{flex:0 0 auto;display:flex;flex-direction:column;gap:clamp(6px,1.2vh,12px);min-height:clamp(96px,19vh,160px);}
+  .feedback{visibility:hidden;border-left:6px solid var(--psg-blue);background:var(--card-gray);border-radius:6px;
+    padding:clamp(8px,1.4vh,14px) clamp(10px,1.4vw,18px);font-size:clamp(13px,min(1.8vw,2.4vh),17px);line-height:1.4;}
+  .feedback.show{visibility:visible;}
+  .feedback .verdict{font-family:var(--font-head);font-weight:700;display:block;margin-bottom:2px;font-size:1.05em;}
+  .feedback.correct{border-left-color:var(--correct);} .feedback.correct .verdict{color:var(--correct);}
+  .feedback.incorrect{border-left-color:var(--incorrect);} .feedback.incorrect .verdict{color:var(--incorrect);}
+  .actions{visibility:hidden;flex:0 0 auto;}
+  .actions.show{visibility:visible;}
+  .actions button{font-family:var(--font-head);font-weight:600;font-size:clamp(13px,min(1.5vw,2vh),15px);
+    color:var(--white);background:var(--psg-blue);border:none;border-radius:6px;
+    padding:clamp(7px,1.2vh,11px) clamp(14px,1.8vw,22px);cursor:pointer;}
+  .actions button:hover{background:#066890;}
+  .actions button:focus-visible{outline:3px solid var(--psg-navy);outline-offset:2px;}
+
+  @media (max-width:700px){
+    .wrap{padding:10px;gap:7px;position:relative;max-height:430px;}
+    .response{position:absolute;top:0;left:0;right:0;margin:0;padding:10px;min-height:0;z-index:5;background:transparent;pointer-events:none;}
+    .response.active{background:var(--page-bg);pointer-events:auto;box-shadow:0 6px 16px rgba(12,35,64,.14);border-radius:0 0 10px 10px;}
+    .given{height:auto;flex:1 1 105px;max-height:110px;min-height:64px;}
+    .options{gap:6px;min-height:100px;}
+    .opt{padding:3px;border-width:2px;border-radius:8px;gap:2px;}
+    .opt .label{font-size:9px;letter-spacing:.02em;}
+    .rule{margin-bottom:5px;}
+    .feedback{font-size:13px;line-height:1.35;padding:8px 10px;border-left-width:5px;}
+    .hint{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div class="toprow"><h1 id="title"></h1><span class="progress" id="progress"></span></div>
+    <div class="rule"></div>
+    <p class="prompt" id="prompt"></p>
+  </div>
+
+  <div class="given" id="given" role="img"></div>
+  <p class="hint" id="hint"></p>
+
+  <div class="options" id="options" role="group" aria-labelledby="prompt"></div>
+
+  <div class="response" id="response">
+    <div class="feedback" id="feedback" role="status" aria-live="polite">
+      <span class="verdict" id="verdict"></span><span id="explain"></span>
+    </div>
+    <div class="actions" id="actions"><button type="button" id="actionBtn">Try again</button></div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   EDIT BELOW THIS LINE TO CHANGE WORDING
+   ----------------------------------------------------------------
+   Each question shows a welding symbol ("given") and three
+   drawings ("options"). Set correct:true on the right one.
+   Drawing settings:
+     tee    - side: "below" | "above" | "both"; sizeTop / sizeBottom
+     teeOpt - left / right: weld size label ("" = no weld there)
+     plan   - size, length ("" = none), joint (full joint length)
+     planOpt- weld length drawn, as a fraction of the joint (0 to 1),
+              plus the label shown on the dimension
+   Keep feedback to about two lines.
+   ================================================================ */
+const COURSE_TITLE = "Match the Symbol to the Weld";
+
+const QUESTIONS = [
+  {
+    prompt: "This symbol points to a T-joint. Which drawing shows the weld it calls for?",
+    given: { type: "tee", side: "below", sizeBottom: "1/4" },
+    options: [
+      { draw: { type: "teeOpt", left: "1/4", right: "" }, correct: false,
+        alt: "Fillet weld on the left side of the joint only",
+        feedback: "That is the other side. A symbol below the line means the arrow side, where the arrow touches the joint." },
+      { draw: { type: "teeOpt", left: "", right: "1/4" }, correct: true,
+        alt: "Fillet weld on the right side of the joint only",
+        feedback: "The symbol is below the line, so the weld goes on the arrow side, where the arrow touches the joint." },
+      { draw: { type: "teeOpt", left: "1/4", right: "1/4" }, correct: false,
+        alt: "Fillet welds on both sides of the joint",
+        feedback: "A weld on both sides needs a symbol above and below the line. This one only has a symbol below." }
+    ],
+    correctVerdict: "Nice work.", incorrectVerdict: "Not quite."
+  },
+  {
+    prompt: "Same joint, same arrow, but the symbol has changed. Which drawing shows the weld now?",
+    given: { type: "tee", side: "above", sizeTop: "3/8" },
+    options: [
+      { draw: { type: "teeOpt", left: "3/8", right: "" }, correct: true,
+        alt: "Fillet weld on the left side of the joint only",
+        feedback: "Symbol above the line means the other side, the side opposite the arrow." },
+      { draw: { type: "teeOpt", left: "", right: "3/8" }, correct: false,
+        alt: "Fillet weld on the right side of the joint only",
+        feedback: "The arrow touches this side, but the symbol is above the line. Above the line means the other side." },
+      { draw: { type: "teeOpt", left: "3/8", right: "3/8" }, correct: false,
+        alt: "Fillet welds on both sides of the joint",
+        feedback: "A weld on both sides needs a symbol above and below the line. This one only has a symbol above." }
+    ],
+    correctVerdict: "That's it.", incorrectVerdict: "Close, but no."
+  },
+  {
+    prompt: "This symbol has two sizes. Which drawing shows the correct welds?",
+    given: { type: "tee", side: "both", sizeTop: "1/4", sizeBottom: "3/8" },
+    options: [
+      { draw: { type: "teeOpt", left: "", right: "3/8" }, correct: false,
+        alt: "One 3/8 fillet weld on the right side only",
+        feedback: "There is a symbol on both sides of the line, so both sides of the joint get a weld." },
+      { draw: { type: "teeOpt", left: "3/8", right: "1/4" }, correct: false,
+        alt: "3/8 weld on the left side and 1/4 weld on the right side",
+        feedback: "The sizes are flipped. The number below the line goes with the arrow side." },
+      { draw: { type: "teeOpt", left: "1/4", right: "3/8" }, correct: true,
+        alt: "1/4 weld on the left side and 3/8 weld on the right side",
+        feedback: "The bottom size (3/8) is the arrow side. The top size (1/4) is the other side." }
+    ],
+    correctVerdict: "Right on.", incorrectVerdict: "Not this one."
+  },
+  {
+    prompt: "Here is the weld that is needed. Which symbol calls for it?",
+    hint: "Each arrow points to the right side of the joint. Select the correct symbol.",
+    givenAlt: "A 3/8 fillet weld on the right side of the T-joint",
+    given: { type: "teeOpt", left: "", right: "3/8" },
+    options: [
+      { draw: { type: "teeSym", side: "below", sizeBottom: "3/8" }, correct: true,
+        alt: "3/8 fillet symbol below the reference line",
+        feedback: "The weld is on the side the arrow touches, so the symbol goes below the line. Its size, 3/8, goes to the left." },
+      { draw: { type: "teeSym", side: "above", sizeTop: "3/8" }, correct: false,
+        alt: "3/8 fillet symbol above the reference line",
+        feedback: "Above the line calls for a weld on the other side. This weld is on the arrow side, so the symbol belongs below." },
+      { draw: { type: "teeSym", side: "below", sizeBottom: "1/4" }, correct: false,
+        alt: "1/4 fillet symbol below the reference line",
+        feedback: "Right side, wrong size. This weld is 3/8, and that number goes to the left of the symbol." }
+    ],
+    correctVerdict: "Spot on.", incorrectVerdict: "Not quite."
+  },
+  {
+    prompt: "This joint needs a weld on each side. Which symbol calls for these welds?",
+    hint: "Each arrow points to the right side of the joint. Select the correct symbol.",
+    givenAlt: "A 3/8 fillet weld on the left side and a 1/4 fillet weld on the right side of the T-joint",
+    given: { type: "teeOpt", left: "3/8", right: "1/4" },
+    options: [
+      { draw: { type: "teeSym", side: "both", sizeTop: "1/4", sizeBottom: "3/8" }, correct: false,
+        alt: "Symbol with 1/4 above the line and 3/8 below the line",
+        feedback: "The sizes are flipped. The bottom number goes with the arrow side, and that weld is 1/4." },
+      { draw: { type: "teeSym", side: "both", sizeTop: "3/8", sizeBottom: "1/4" }, correct: true,
+        alt: "Symbol with 3/8 above the line and 1/4 below the line",
+        feedback: "The 1/4 weld is on the arrow side, so 1/4 goes below the line. The 3/8 weld is on the other side, so it goes above." },
+      { draw: { type: "teeSym", side: "below", sizeBottom: "3/8" }, correct: false,
+        alt: "3/8 fillet symbol below the line only",
+        feedback: "This joint is welded on both sides, so the symbol needs a triangle above and below the line." }
+    ],
+    correctVerdict: "Well done.", incorrectVerdict: "Close, but no."
+  },
+  {
+    prompt: "Challenge: this time the arrow comes from the other direction. Which drawing shows the weld?",
+    givenAlt: "A T-joint with the reference line on the left. The arrow touches the left side of the joint, and a 3/8 fillet symbol sits above the line.",
+    given: { type: "tee", arrow: "left", side: "above", sizeTop: "3/8" },
+    options: [
+      { draw: { type: "teeOpt", left: "3/8", right: "3/8" }, correct: false,
+        alt: "Fillet welds on both sides of the joint",
+        feedback: "A weld on both sides needs a symbol above and below the line. This one only has a symbol above." },
+      { draw: { type: "teeOpt", left: "", right: "3/8" }, correct: true,
+        alt: "Fillet weld on the right side of the joint only",
+        feedback: "The arrow touches the left side now, so the right is the other side. Note the triangle's vertical leg still faces left." },
+      { draw: { type: "teeOpt", left: "3/8", right: "" }, correct: false,
+        alt: "Fillet weld on the left side of the joint only",
+        feedback: "That is the arrow side. The symbol is above the line, so the weld goes on the side away from the arrow." }
+    ],
+    correctVerdict: "Nailed it.", incorrectVerdict: "Tricky one."
+  }
+];
+/* ================================================================
+   NO EDITS NEEDED BELOW THIS LINE
+   ================================================================ */
+
+(function () {
+  const INK = "#0C2340", WELD = "#5A6B7D", PART = "#E2E6EA", FONT = "Arial, Helvetica, sans-serif";
+  let uid = 0;
+
+  function txt(x, y, s, size, anchor) {
+    return '<text x="' + x + '" y="' + y + '" font-family="' + FONT + '" font-size="' + (size || 15) +
+      '" fill="' + INK + '" text-anchor="' + (anchor || "middle") + '">' + s + '</text>';
+  }
+  function hatch(id) {
+    return '<defs><pattern id="' + id + '" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+      '<rect width="5" height="5" fill="#C9D0D8"/><line x1="0" y1="0" x2="0" y2="5" stroke="' + WELD + '" stroke-width="2.2"/></pattern></defs>';
+  }
+  function tee(ox, oy) {
+    // base plate and upright member of a T-joint, corner points returned
+    return '<rect x="' + (ox) + '" y="' + (oy + 100) + '" width="150" height="20" fill="' + PART + '" stroke="' + INK + '" stroke-width="2"/>' +
+           '<rect x="' + (ox + 60) + '" y="' + oy + '" width="30" height="100" fill="' + PART + '" stroke="' + INK + '" stroke-width="2"/>';
+  }
+  function filletTri(x, y, s, dir) {
+    // weld cross section in a corner: dir -1 = left corner, +1 = right corner
+    return 'M' + x + ' ' + y + ' L' + (x + dir * s) + ' ' + y + ' L' + x + ' ' + (y - s) + ' Z';
+  }
+  function arrowHead(x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, h = 14, w = 5.5;
+    const bx = x2 - ux * h, by = y2 - uy * h;
+    return '<path d="M' + x2 + ' ' + y2 + ' L' + (bx - uy * w) + ' ' + (by + ux * w) + ' L' + (bx + uy * w) + ' ' + (by - ux * w) + ' Z" fill="' + INK + '"/>';
+  }
+  function sizePx(label) {
+    return { "1/4": 18, "3/8": 28 }[label] || 18;
+  }
+
+  function drawTee(d) {
+    // Joint on the left, reference line to the right. Arrow touches the RIGHT corner.
+    // arrow:"left" mirrors the layout: joint on the right, line on the left, arrow touches the LEFT corner.
+    const L = d.arrow === "left";
+    const ox = L ? 160 : 20, oy = 20, cx = L ? ox + 60 : ox + 90, cy = oy + 100;
+    const ly = 72, lx0 = L ? 180 : 150, lx1 = L ? 20 : 300;  // lx0 = end of the line the arrow leaves from
+    let s = '<svg viewBox="12 12 300 132" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">';
+    s += tee(ox, oy);
+    s += '<line x1="' + lx0 + '" y1="' + ly + '" x2="' + lx1 + '" y2="' + ly + '" stroke="' + INK + '" stroke-width="2.2"/>';
+    s += '<line x1="' + lx0 + '" y1="' + ly + '" x2="' + (L ? cx - 6 : cx + 6) + '" y2="' + (cy - 7) + '" stroke="' + INK + '" stroke-width="2.2"/>';
+    s += arrowHead(lx0, ly, L ? cx - 1 : cx + 1, cy - 1);
+    const tx = L ? 95 : 220, t = 20;                                  // fillet symbol: vertical leg on the LEFT
+    if (d.side === "below" || d.side === "both") {
+      s += '<path d="M' + tx + ' ' + ly + ' L' + tx + ' ' + (ly + t) + ' L' + (tx + t) + ' ' + ly + '" fill="none" stroke="' + INK + '" stroke-width="2.2"/>';
+      s += txt(tx - 6, ly + 19, d.sizeBottom || "", 19, "end");
+    }
+    if (d.side === "above" || d.side === "both") {
+      s += '<path d="M' + tx + ' ' + ly + ' L' + tx + ' ' + (ly - t) + ' L' + (tx + t) + ' ' + ly + '" fill="none" stroke="' + INK + '" stroke-width="2.2"/>';
+      s += txt(tx - 6, ly - 5, d.sizeTop || "", 19, "end");
+    }
+    return s + '</svg>';
+  }
+
+  function drawTeeOpt(d) {
+    const id = "h" + (uid++), ox = 25, oy = 18, ly = oy + 100;
+    let s = '<svg viewBox="22 14 156 128" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">' + hatch(id);
+    s += tee(ox, oy);
+    if (d.left)  { const p = sizePx(d.left);  s += '<path d="' + filletTri(ox + 60, ly, p, -1) + '" fill="url(#' + id + ')" stroke="' + INK + '" stroke-width="1.6"/>' + txt(ox + 60 - p - 4, ly - p + 6, d.left, 17, "end"); }
+    if (d.right) { const p = sizePx(d.right); s += '<path d="' + filletTri(ox + 90, ly, p, 1) + '" fill="url(#' + id + ')" stroke="' + INK + '" stroke-width="1.6"/>' + txt(ox + 90 + p + 4, ly - p + 6, d.right, 17, "start"); }
+    return s + '</svg>';
+  }
+
+  function plateTop(x, y, w) {
+    // top view of a T-joint: base plate with the upright member as a center strip
+    return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="70" fill="' + PART + '" stroke="' + INK + '" stroke-width="2"/>' +
+           '<line x1="' + x + '" y1="' + (y + 28) + '" x2="' + (x + w) + '" y2="' + (y + 28) + '" stroke="' + INK + '" stroke-width="1.8"/>' +
+           '<line x1="' + x + '" y1="' + (y + 42) + '" x2="' + (x + w) + '" y2="' + (y + 42) + '" stroke="' + INK + '" stroke-width="1.8"/>';
+  }
+  function dimLine(x0, x1, y, label) {
+    let s = '<line x1="' + x0 + '" y1="' + (y - 7) + '" x2="' + x0 + '" y2="' + (y + 7) + '" stroke="' + INK + '" stroke-width="1.3"/>';
+    s += '<line x1="' + x1 + '" y1="' + (y - 7) + '" x2="' + x1 + '" y2="' + (y + 7) + '" stroke="' + INK + '" stroke-width="1.3"/>';
+    s += '<line x1="' + x0 + '" y1="' + y + '" x2="' + x1 + '" y2="' + y + '" stroke="' + INK + '" stroke-width="1.3"/>';
+    s += '<path d="M' + x0 + ' ' + y + ' l7 -3.5 v7 z M' + x1 + ' ' + y + ' l-7 -3.5 v7 z" fill="' + INK + '"/>';
+    const w = x1 - x0;
+    if (w > 40) s += '<rect x="' + ((x0 + x1) / 2 - 15) + '" y="' + (y - 11) + '" width="30" height="20" fill="#fff"/>' + txt((x0 + x1) / 2, y + 6, label, 18);
+    else s += txt(x1 + 6, y + 6, label, 18, "start");
+    return s;
+  }
+
+  function drawPlan(d) {
+    const x = 20, y = 18, w = 160, ly = 56, lx0 = 205, lx1 = 305, ey = y + 42;
+    let s = '<svg viewBox="12 10 300 120" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">';
+    s += plateTop(x, y, w);
+    s += dimLine(x, x + w, y + 98, d.joint);
+    s += '<line x1="' + lx0 + '" y1="' + ly + '" x2="' + lx1 + '" y2="' + ly + '" stroke="' + INK + '" stroke-width="2.2"/>';
+    s += '<line x1="' + lx0 + '" y1="' + ly + '" x2="' + (x + w - 34) + '" y2="' + (ey + 1) + '" stroke="' + INK + '" stroke-width="2.2"/>';
+    s += arrowHead(lx0, ly, x + w - 40, ey + 1);
+    const tx = 262, t = 20;
+    s += '<path d="M' + tx + ' ' + ly + ' L' + tx + ' ' + (ly + t) + ' L' + (tx + t) + ' ' + ly + '" fill="none" stroke="' + INK + '" stroke-width="2.2"/>';
+    s += txt(tx - 6, ly + 19, d.size, 19, "end");
+    if (d.length) s += txt(tx + t + 6, ly + 19, d.length, 19, "start");
+    return s + '</svg>';
+  }
+
+  function drawPlanOpt(d) {
+    const id = "h" + (uid++), x = 15, y = 12, w = 170, ey = y + 42;
+    let s = '<svg viewBox="10 8 180 120" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">' + hatch(id);
+    s += plateTop(x, y, w);
+    const len = Math.max(6, w * d.frac);
+    s += '<rect x="' + x + '" y="' + ey + '" width="' + len + '" height="9" fill="url(#' + id + ')" stroke="' + INK + '" stroke-width="1.2"/>';
+    s += dimLine(x, x + len, y + 100, d.label);
+    return s + '</svg>';
+  }
+
+
+  function drawTeeSym(d) {
+    // compact symbol drawing for answer cards: small T-joint, arrow to the RIGHT corner
+    const cx = 70, cy = 98, ly = 56, lx0 = 104, lx1 = 214, tx = 166, t = 22;
+    let s = '<svg viewBox="4 2 214 114" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect x="10" y="98" width="100" height="14" fill="' + PART + '" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<rect x="50" y="14" width="20" height="84" fill="' + PART + '" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<line x1="' + lx0 + '" y1="' + ly + '" x2="' + lx1 + '" y2="' + ly + '" stroke="' + INK + '" stroke-width="2.4"/>';
+    s += '<line x1="' + lx0 + '" y1="' + ly + '" x2="' + (cx + 7) + '" y2="' + (cy - 8) + '" stroke="' + INK + '" stroke-width="2.4"/>';
+    s += arrowHead(lx0, ly, cx + 1, cy - 1);
+    if (d.side === "below" || d.side === "both") {
+      s += '<path d="M' + tx + ' ' + ly + ' L' + tx + ' ' + (ly + t) + ' L' + (tx + t) + ' ' + ly + '" fill="none" stroke="' + INK + '" stroke-width="2.4"/>';
+      s += txt(tx - 4, ly + 26, d.sizeBottom || "", 28, "end");
+    }
+    if (d.side === "above" || d.side === "both") {
+      s += '<path d="M' + tx + ' ' + ly + ' L' + tx + ' ' + (ly - t) + ' L' + (tx + t) + ' ' + ly + '" fill="none" stroke="' + INK + '" stroke-width="2.4"/>';
+      s += txt(tx - 4, ly - 6, d.sizeTop || "", 28, "end");
+    }
+    return s + '</svg>';
+  }
+  const DRAW = { tee: drawTee, teeOpt: drawTeeOpt, teeSym: drawTeeSym, plan: drawPlan, planOpt: drawPlanOpt };
+
+  const titleEl = document.getElementById("title"), progEl = document.getElementById("progress");
+  const promptEl = document.getElementById("prompt"), givenEl = document.getElementById("given");
+  const grid = document.getElementById("options"), resp = document.getElementById("response");
+  const fb = document.getElementById("feedback"), verdict = document.getElementById("verdict");
+  const explain = document.getElementById("explain"), actions = document.getElementById("actions");
+  const btn = document.getElementById("actionBtn"), hintEl = document.getElementById("hint");
+  titleEl.textContent = COURSE_TITLE; document.title = COURSE_TITLE;
+
+  let qi = 0, cards = [], mode = "retry";
+
+  function load(i) {
+    qi = i;
+    const q = QUESTIONS[i];
+    progEl.textContent = QUESTIONS.length > 1 ? "Question " + (i + 1) + " of " + QUESTIONS.length : "";
+    promptEl.textContent = q.prompt;
+    givenEl.innerHTML = DRAW[q.given.type](q.given);
+    givenEl.setAttribute("aria-label", q.givenAlt || ("Drawing for question " + (i + 1)));
+    hintEl.textContent = q.hint || "Select the drawing that shows the correct weld.";
+    grid.innerHTML = "";
+    cards = q.options.map(function (o, j) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "opt";
+      const letter = String.fromCharCode(65 + j);
+      b.setAttribute("aria-label", "Option " + letter + ": " + o.alt);
+      b.innerHTML = DRAW[o.draw.type](o.draw) + '<span class="label">Option ' + letter + '</span>';
+      b.addEventListener("click", function () { choose(j); });
+      grid.appendChild(b);
+      return b;
+    });
+    reset();
+  }
+
+  function choose(j) {
+    if (grid.dataset.locked === "1") return;
+    const q = QUESTIONS[qi], o = q.options[j];
+    grid.dataset.locked = "1";
+    cards.forEach(function (c, k) {
+      c.classList.add("locked");
+      c.classList.add(k === j ? (o.correct ? "chosen-correct" : "chosen-incorrect") : "dimmed");
+    });
+    verdict.textContent = o.correct ? q.correctVerdict : q.incorrectVerdict;
+    explain.textContent = " " + o.feedback;
+    fb.className = "feedback show " + (o.correct ? "correct" : "incorrect");
+    if (o.correct) {
+      mode = qi < QUESTIONS.length - 1 ? "next" : "restart";
+      btn.textContent = mode === "next" ? "Next question" : (QUESTIONS.length > 1 ? "Start over" : "Try it again");
+    } else {
+      mode = "retry"; btn.textContent = "Try again";
+    }
+    actions.className = "actions show";
+    resp.classList.add("active");
+    btn.focus({ preventScroll: true });
+  }
+
+  function reset() {
+    grid.dataset.locked = "0";
+    cards.forEach(function (c) { c.className = "opt"; });
+    fb.className = "feedback"; actions.className = "actions";
+    resp.classList.remove("active");
+  }
+
+  btn.addEventListener("click", function () {
+    if (mode === "next") load(qi + 1);
+    else if (mode === "restart") load(0);
+    else reset();
+    if (cards[0]) cards[0].focus({ preventScroll: true });
+  });
+
+  load(0);
+})();
+</script>
+</body>
+</html>
